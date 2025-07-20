@@ -8,12 +8,47 @@ const HTML_START = `
   <head>
     <meta charset="utf-8">
     <title>Loan Calculator</title>
+    <style type="text/css">
+      body {
+        background: rgba(250, 250, 250);
+        font-family: sans-serif;
+        color: rgb(50, 50, 50);
+      }
+
+      article {
+        width: 100%;
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 1rem 2rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        text-align: center;
+      }
+
+      table {
+        font-size: 1.5rem;
+      }
+      th {
+        text-align: right;
+      }
+      td {
+        text-align: center;
+      }
+      th,
+      td {
+        padding: 0.5rem;
+      }
+    </style>
   </head>
   <body>
     <article>
       <h1>Loan Calculator</h1>
       <table>
-        <tbody>`;
+        <tbody>
+`;
+
 
 const HTML_END = `
         </tbody>
@@ -34,20 +69,54 @@ function monthlyPayment(amount, duration, interestRate) {
   let annualInterestRate = interestRate / 100;
   let monthlyInterestRate = annualInterestRate / 12;
   let months = duration * 12;
-  let monthlyPayment = amount *
+  let payment = amount *
                   (monthlyInterestRate /
                   (1 - Math.pow((1 + monthlyInterestRate), (-Number(months)))));
-  return monthlyPayment.toFixed(2);
+    
+  if (!payment || payment === Infinity || payment === -Infinity) {
+    return '0.00';
+  }
+
+  return payment.toFixed(2);
 }
 
 function createLoanOffer(params) {
   const APR = 5;
   let { amount, duration } = params;
+  amount = !amount ? 0 : amount;
+  duration = !duration ? 0 : duration;
   let paymentPerMonth = monthlyPayment(amount, duration, APR);
-  return HTML_START + `<table><tbody><tr><th>Amount:</th><td>$${amount}</td>
-          </tr><tr><th>Duration:</th><td>${duration} years</td></tr>
-          <tr><th>APR:</th><td>${APR}%</td></tr><tr><th>Monthly payment:</th>
-          <td>$${paymentPerMonth}</td></tr></tbody></table>` + HTML_END;
+
+  let content = `<tr>
+                  <th>Amount:</th>
+                    <td>
+                      <a href='/?amount=${amount - 100}&duration=${duration}'>- $100</a>
+                    </td>
+                    <td>$${amount}</td>
+                    <td>
+                      <a href='/?amount=${amount + 100}&duration=${duration}'>+ $100</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Duration:</th>
+                    <td>
+                      <a href='/?amount=${amount}&duration=${duration - 1}'>- 1 year</a>
+                    </td>
+                    <td>${duration} years</td>
+                    <td>
+                      <a href='/?amount=${amount}&duration=${duration + 1}'>+ 1 year</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>APR:</th>
+                    <td colspan='3'>${APR}%</td>
+                  </tr>
+                  <tr>
+                    <th>Monthly payment:</th>
+                    <td colspan='3'>$${paymentPerMonth}</td>
+                  </tr>`;
+
+  return HTML_START + content + HTML_END;
 }
 
 const SERVER = HTTP.createServer((req, res) => {
