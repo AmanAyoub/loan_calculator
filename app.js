@@ -1,7 +1,6 @@
 const HTTP = require('http');
 const URL = require('url').URL;
 const PORT = 3005;
-const APR = 5;
 
 function getParams(path) {
   let myURL = new URL(path, `http://localhost:${PORT}`);
