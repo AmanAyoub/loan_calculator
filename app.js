@@ -21,11 +21,16 @@ function monthlyPayment(amount, duration, interestRate) {
   return monthlyPayment.toFixed(2);
 }
 
-const SERVER = HTTP.createServer((req, res) => {
-  let path = req.url;
-  let { amount, duration } = getParams(path);
+function createLoanOffer(params) {
+  const APR = 5;
+  let { amount, duration } = params;
   let paymentPerMonth = monthlyPayment(amount, duration, APR);
-  let content = `Amount: $${amount}\nDuration: $${duration} years\nAPR: ${APR}%\nMonthly Payment: $${paymentPerMonth}`;
+  return `Amount: $${amount}\nDuration: $${duration} years\nAPR: ${APR}%\nMonthly Payment: $${paymentPerMonth}`
+}
+
+const SERVER = HTTP.createServer((req, res) => {
+  let path = req.url
+  let content = createLoanOffer(getParams(path));
 
   if (path === '/favicon.ico') {
     res.statusCode = 404;
