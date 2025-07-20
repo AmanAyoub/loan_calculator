@@ -37,7 +37,7 @@ const SERVER = HTTP.createServer((req, res) => {
   } else {
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/plain');
-    res.write(content);
+    res.write(`${content}\n`);
     res.end();
   }
 });
