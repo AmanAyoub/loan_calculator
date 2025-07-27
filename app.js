@@ -134,7 +134,7 @@ function monthlyPayment(amount, duration, interestRate) {
   }
 
   return payment.toFixed(2);
-}
+};
 
 function createLoanOffer(data) {
   data.amountIncrement = data.amount + 100;
@@ -145,7 +145,38 @@ function createLoanOffer(data) {
   data.payment = monthlyPayment(data.amount, data.duration, APR);
 
   return data;
-}
+};
+
+function getIndex(res) {
+  let content = render(LOAN_FORM_TEMPLATE, {apr: APR});
+
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/html');
+  res.write(`${content}\n`);
+  res.end();
+};
+
+function getLoanOffer(res, path) {
+  let data = createLoanOffer(getParams(path));
+  let content = render(LOAN_OFFER_TEMPLATE, data);
+
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/html');
+  res.write(`${content}\n`);
+  res.end();
+};
+
+function postLoanOffer(req, res) {
+  parseFormData(req, parsedData => {
+    let data = createLoanOffer(parsedData);
+    let content = render(LOAN_OFFER_TEMPLATE, data);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/html');
+    res.write(`${content}\n`);
+    res.end();
+  });
+};
 
 const SERVER = HTTP.createServer((req, res) => {
   let path = req.url;
@@ -161,38 +192,17 @@ const SERVER = HTTP.createServer((req, res) => {
     } else {
       let method = req.method;
       if (pathname === '/' && method === 'GET') {
-        let content = render(LOAN_FORM_TEMPLATE, {apr: APR});
-
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/html');
-        res.write(`${content}\n`);
-        res.end();
+        getIndex(res);
       } else if (pathname === '/loan-offer' && method === 'GET') {
-        let data = createLoanOffer(getParams(path));
-        let content = render(LOAN_OFFER_TEMPLATE, data);
-
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/html');
-        res.write(`${content}\n`);
-        res.end();
+        getLoanOffer(res, path);
       } else if (method === 'POST' && pathname === '/loan-offer') {
-        parseFormData(req, parsedData => {
-          let data = createLoanOffer(parsedData);
-          let content = render(LOAN_OFFER_TEMPLATE, data);
-
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'text/html');
-          res.write(`${content}\n`);
-          res.end();
-        });
+        postLoanOffer(req, res);
       } else {
         res.statusCode = 404;
         res.end();
       }
     }
   });
-  
-
 });
 
 SERVER.listen(PORT, () => {
