@@ -4,6 +4,7 @@ const PATH = require('path');
 const PORT = 3005;
 const HANDLEBARS = require('handlebars');
 const FS = require('fs');
+const QUERYSTRING = require('querystring');
 const MIME_TYPES = {
   '.css': 'text/css',
   '.js': 'application/javascript',
@@ -71,7 +72,7 @@ const LOAN_FORM_SOURCE = `<!DOCTYPE html>
   <body>
     <article>
       <h1>Loan Calculator</h1>
-      <form action="/loan-offer" method="get">
+      <form action="/loan-offer" method="post">
         <p>All loans are offered at an APR of {{apr}}%.</p>
         <label for="amount">How much do you want to borrow (in dollars)?</label>
         <input type="number" name="amount" id="amount" value="">
@@ -87,6 +88,19 @@ const LOAN_FORM_SOURCE = `<!DOCTYPE html>
 const LOAN_FORM_TEMPLATE = HANDLEBARS.compile(LOAN_FORM_SOURCE)
 const LOAN_OFFER_TEMPLATE = HANDLEBARS.compile(LOAN_OFFER_SOURCE);
 
+function parseFormData(request, callback) {
+  let body = '';
+  request.on('data', chunk => {
+    body += chunk.toString();
+  });
+  request.on('end', () => {
+    let data = QUERYSTRING.parse(body);
+    data.amount = Number(data.amount);
+    data.duration = Number(data.duration);
+    callback(data);
+  });
+}
+
 function render(template, data) {
   let html = template(data);
   return html;
@@ -94,10 +108,12 @@ function render(template, data) {
 
 function getParams(path) {
   let myURL = new URL(path, `http://localhost:${PORT}`);
-  return {
-    amount: Number(myURL.searchParams.get('amount')),
-    duration: Number(myURL.searchParams.get('duration'))
-  }
+  let searchParams = myURL.searchParams;
+  let data = {};
+  data.amount = Number(searchParams.get('amount'));
+  data.duration = Number(searchParams.get('duration'));
+
+  return data;
 }
 
 function getPathname(path) {
@@ -120,13 +136,9 @@ function monthlyPayment(amount, duration, interestRate) {
   return payment.toFixed(2);
 }
 
-function createLoanOffer(params) {
-  let data = {};
-
-  data.amount = params.amount;
+function createLoanOffer(data) {
   data.amountIncrement = data.amount + 100;
   data.amountDecrement = data.amount - 100;
-  data.duration = params.duration;
   data.durationIncrement = data.duration + 1;
   data.durationDecrement = data.duration - 1;
   data.apr = APR;
@@ -147,14 +159,15 @@ const SERVER = HTTP.createServer((req, res) => {
       res.write(`${data}\n`);
       res.end();
     } else {
-      if (pathname === '/') {
+      let method = req.method;
+      if (pathname === '/' && method === 'GET') {
         let content = render(LOAN_FORM_TEMPLATE, {apr: APR});
 
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/html');
         res.write(`${content}\n`);
         res.end();
-      } else if (pathname === '/loan-offer') {
+      } else if (pathname === '/loan-offer' && method === 'GET') {
         let data = createLoanOffer(getParams(path));
         let content = render(LOAN_OFFER_TEMPLATE, data);
 
@@ -162,6 +175,16 @@ const SERVER = HTTP.createServer((req, res) => {
         res.setHeader('Content-Type', 'text/html');
         res.write(`${content}\n`);
         res.end();
+      } else if (method === 'POST' && pathname === '/loan-offer') {
+        parseFormData(req, parsedData => {
+          let data = createLoanOffer(parsedData);
+          let content = render(LOAN_OFFER_TEMPLATE, data);
+
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/html');
+          res.write(`${content}\n`);
+          res.end();
+        });
       } else {
         res.statusCode = 404;
         res.end();
