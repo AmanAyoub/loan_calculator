@@ -1,17 +1,11 @@
 const HTTP = require('http');
 const URL = require('url').URL;
-const PATH = require('path');
 const PORT = 3005;
 const HANDLEBARS = require('handlebars');
-const FS = require('fs');
 const QUERYSTRING = require('querystring');
-const MIME_TYPES = {
-  '.css': 'text/css',
-  '.js': 'application/javascript',
-  '.jpg': 'image/jpeg',
-  '.png': 'image/png',
-  '.ico': 'image/x-icon'
-};
+const ROUTER = require('router');
+const FINALHANDLER = require('finalhandler');
+const SERVESTATIC = require('serve-static');
 const APR = 5;
 
 const LOAN_OFFER_SOURCE = `
@@ -147,26 +141,31 @@ function createLoanOffer(data) {
   return data;
 };
 
-function getIndex(res) {
+
+
+let router = ROUTER();
+router.use(SERVESTATIC('public'));
+
+router.get('/', function (req, res) {
   let content = render(LOAN_FORM_TEMPLATE, {apr: APR});
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html');
   res.write(`${content}\n`);
   res.end();
-};
+});
 
-function getLoanOffer(res, path) {
-  let data = createLoanOffer(getParams(path));
+router.get('/loan-offer', function (req, res) {
+  let data = createLoanOffer(getParams(req.url));
   let content = render(LOAN_OFFER_TEMPLATE, data);
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html');
   res.write(`${content}\n`);
   res.end();
-};
+});
 
-function postLoanOffer(req, res) {
+router.post('/loan-offer', function (req, res) {
   parseFormData(req, parsedData => {
     let data = createLoanOffer(parsedData);
     let content = render(LOAN_OFFER_TEMPLATE, data);
@@ -176,33 +175,17 @@ function postLoanOffer(req, res) {
     res.write(`${content}\n`);
     res.end();
   });
-};
+});
+
+router.get('*', function(req, res){
+  res.statusCode = 404;
+  res.end();
+});
+
+
 
 const SERVER = HTTP.createServer((req, res) => {
-  let path = req.url;
-  let pathname = getPathname(path);
-  let fileExtention = PATH.extname(path);
-
-  FS.readFile(`./public/${pathname}`, (err, data) => {
-    if (data) {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', `${MIME_TYPES[fileExtention]}`);
-      res.write(`${data}\n`);
-      res.end();
-    } else {
-      let method = req.method;
-      if (pathname === '/' && method === 'GET') {
-        getIndex(res);
-      } else if (pathname === '/loan-offer' && method === 'GET') {
-        getLoanOffer(res, path);
-      } else if (method === 'POST' && pathname === '/loan-offer') {
-        postLoanOffer(req, res);
-      } else {
-        res.statusCode = 404;
-        res.end();
-      }
-    }
-  });
+  router(req, res, FINALHANDLER(req, res));
 });
 
 SERVER.listen(PORT, () => {
